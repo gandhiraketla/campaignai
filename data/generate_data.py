@@ -76,7 +76,7 @@ CHANNELS = {
 }
 
 class MarketingCampaignGenerator:
-    def __init__(self, num_records=200000):
+    def __init__(self, num_records=5000):
         self.num_records = num_records
         self.campaign_counter = 1
         
@@ -146,8 +146,8 @@ class MarketingCampaignGenerator:
         
         # Calculate ROI
         actual_spend = budget * random.uniform(0.9, 1.1)
-        roi = ((revenue - actual_spend) / actual_spend) * 100 if actual_spend > 0 else 0
-        
+        #roi = ((revenue - actual_spend) / actual_spend) * 100 if actual_spend > 0 else 0
+        roi=0
         # Generate engagement rate
         engagement_rate = random.uniform(0.02, 0.08)
         
