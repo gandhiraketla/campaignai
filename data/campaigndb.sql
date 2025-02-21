@@ -1,4 +1,3 @@
--- create_campaigns_table.sql
 CREATE DATABASE IF NOT EXISTS mymarketing;
 USE mymarketing;
 
@@ -7,14 +6,17 @@ DROP TABLE IF EXISTS campaigns;
 CREATE TABLE campaigns (
     id INT AUTO_INCREMENT PRIMARY KEY,
     campaign_name VARCHAR(255),
-    channel VARCHAR(255),      -- e.g., 'Facebook', 'Google Ads', 'LinkedIn', etc.
+    channel VARCHAR(50),                  -- e.g., Facebook, Google, LinkedIn
+    campaign_type ENUM('awareness', 'conversion'),  -- Simplified types
     start_date DATE,
     end_date DATE,
-    budget FLOAT,              -- total allocated budget
-    spend FLOAT,               -- actual spend so far
-    impressions INT,           -- how many impressions served
-    clicks INT,                -- how many clicks
-    conversions INT,           -- how many conversions (leads, signups, etc.)
-    revenue FLOAT,             -- total revenue attributed to this campaign
-    notes TEXT                 -- free-form text for additional details
+    status ENUM('active', 'completed'),   -- Simplified status
+    budget DECIMAL(10,2),                 -- Total allocated budget
+    spend DECIMAL(10,2),                  -- Actual spend
+    impressions INT,
+    clicks INT,
+    conversions INT,
+    revenue DECIMAL(10,2),                -- Revenue generated
+    notes TEXT,                           -- Additional notes
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

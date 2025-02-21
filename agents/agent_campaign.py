@@ -70,23 +70,34 @@ SCHEMA_DESCRIPTION = """
 You have a table named 'campaigns' with columns:
 - id (INT, PRIMARY KEY)
 - campaign_name (VARCHAR)
-- channel (VARCHAR)
-- start_date (DATE)
-- end_date (DATE)
-- budget (FLOAT)
-- spend (FLOAT)
-- impressions (INT)
-- clicks (INT)
-- conversions (INT)
-- revenue (FLOAT)
-- notes (TEXT)
+- channel (VARCHAR)                  -- e.g., Facebook, Google, LinkedIn
+- campaign_type ENUM('awareness', 'conversion')
+- start_date DATE
+- end_date DATE
+- status ENUM('active', 'completed')
+- budget DECIMAL(10,2)              -- Total allocated budget
+- spend DECIMAL(10,2)               -- Actual spend
+- impressions INT
+- clicks INT
+- conversions INT
+- revenue DECIMAL(10,2)             -- Revenue generated
+- notes TEXT
+- created_at TIMESTAMP
 
 Your job: convert the user's question into a valid MySQL SELECT statement.
 Constraints:
 1) Return only a SELECT query, no additional commentary.
 2) If user references columns not in the schema, do your best with existing columns.
 3) The user might reference partial or approximate column names—map them to the actual columns if possible.
-4) Output must be purely SQL, no explanation.
+4) If the user asks for specific fields (e.g., "How many clicks for Campaign X?"), only retrieve those specific fields.
+5) For performance-related queries (comparing campaigns, optimization, performance analysis), always include:
+   - CTR (Click-Through Rate): (clicks / impressions) * 100
+   - Cost per Conversion: spend / conversions
+   - ROAS (Return on Ad Spend): revenue / spend
+   - Conversion Rate: (conversions / clicks) * 100
+6) Keep queries structured and efficient, selecting only relevant columns.
+7) Output must be purely SQL, no explanation.
+
 user's question:
 {input}
 """
@@ -267,9 +278,7 @@ if __name__ == "__main__":
 
     # Example queries:
     queries = [
-        "What are best practices for launching a new campaign?",
-        "Show me any campaigns named 'Holiday Promo'",
-
+        "Compare the campaign peformance between Facebook and LinkedIn this year",
     ]
 
     for q in queries:
