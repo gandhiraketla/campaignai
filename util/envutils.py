@@ -98,7 +98,22 @@ class EnvUtils:
             key: self.get_env(key, default) 
             for key, default in config_map.items()
         }
-
+    @staticmethod
+    def get_llm():
+        """Get the appropriate LLM based on environment configuration"""
+        model_type = EnvUtils().get_required_env("MODEL_TYPE").lower()
+        if model_type == "ollama":
+            from langchain_ollama import ChatOllama
+            return ChatOllama(
+                model="mistral",
+                temperature=0
+            )
+        else:
+            from langchain_openai import ChatOpenAI
+            return ChatOpenAI(
+                model="gpt-3.5-turbo",
+                temperature=0
+            )
 # Example usage
 def main():
     # Initialize EnvUtils (will load .env)
