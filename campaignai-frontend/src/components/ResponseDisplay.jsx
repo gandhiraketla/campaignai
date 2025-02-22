@@ -66,7 +66,7 @@ function ResponseDisplay({ response, error, isLoading }) {
                        bg-gradient-to-r from-white via-white to-white 
                        drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]
                        tracking-wide">
-          AI Insights
+          Campaign Insights
         </h3>
         <div className="leading-relaxed text-lg font-medium">
           {formatResponseToBulletPoints(response)}

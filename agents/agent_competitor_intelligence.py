@@ -188,18 +188,21 @@ def analyze_reddit_discussions(product: str) -> str:
         return "Reddit analysis is not available due to client initialization failure"
         
     try:
-        # Map products to relevant subreddits
+        # Refined subreddit mapping with more flexible matching
         subreddit_map = {
             "fitbit": "fitbit",
-            "apple watch": "AppleWatch"
+            "fitbit versa": "fitbit",
+            "apple watch": "AppleWatch",
+            "apple watch ultra": "AppleWatch"
         }
         
         product_lower = product.lower()
-        subreddit_name = subreddit_map.get(product_lower, product_lower)
-        subreddit = reddit.subreddit(subreddit_name)
+        subreddit_name = subreddit_map.get(product_lower, product_lower.replace(" ", ""))
         
-        # Get top posts from the past week
         try:
+            subreddit = reddit.subreddit(subreddit_name)
+            
+            # Get top posts from the past week
             top_posts = list(subreddit.top(time_filter="week", limit=10))
         except Exception as e:
             logger.error(f"Error accessing subreddit {subreddit_name}: {e}")
