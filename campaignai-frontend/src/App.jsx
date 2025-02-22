@@ -61,7 +61,7 @@ function App() {
         </div>
       </div>
       <footer className="text-center text-white/50 py-6">
-        © 2024 CampaignAI. Powering Intelligent Marketing Insights.
+        © 2025 CampaignAI. Powering Intelligent Marketing Insights.
       </footer>
     </div>
   );
