@@ -135,7 +135,8 @@ npm run dev
 ```
 campaignai/
 │
-├── api/                # Backend FastAPI application
+├── api/ # Backend FastAPI application     
+├── agent/ # All agents        
 ├── campaignai-frontend/  # React frontend
 ├── data/               # Database scripts
 ├── util/               # Utility scripts
