@@ -7,7 +7,7 @@ CampaignAI is an advanced marketing intelligence platform that leverages AI to p
 - Python 3.8+
 - Node.js 16+
 - MySQL
-- Git
+
 
 ## 🚀 Quick Start Guide
 
