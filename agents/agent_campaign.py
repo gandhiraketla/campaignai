@@ -3,6 +3,8 @@ import sys
 import re
 import logging
 import mysql.connector
+
+from typing import Dict, List, TypedDict, Annotated
 from mysql.connector import Error
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -67,10 +69,13 @@ def get_llm():
 ###############################################################################
 
 SCHEMA_DESCRIPTION = """
-You have a table named 'campaigns' with columns:
+You are an expert SQL developer specializing in marketing analytics. Using the campaigns table described below, generate precise MySQL queries that calculate marketing metrics.
+
+Table: campaigns
+Columns:
 - id (INT, PRIMARY KEY)
 - campaign_name (VARCHAR)
-- channel (VARCHAR)                  -- e.g., Facebook, Google, LinkedIn
+- channel (VARCHAR)                  -- Valid values: Facebook, Google, LinkedIn only
 - campaign_type ENUM('awareness', 'conversion')
 - start_date DATE
 - end_date DATE
@@ -84,22 +89,26 @@ You have a table named 'campaigns' with columns:
 - notes TEXT
 - created_at TIMESTAMP
 
-Your job: convert the user's question into a valid MySQL SELECT statement.
-Constraints:
-1) Return only a SELECT query, no additional commentary.
-2) If user references columns not in the schema, do your best with existing columns.
-3) The user might reference partial or approximate column names—map them to the actual columns if possible.
-4) If the user asks for specific fields (e.g., "How many clicks for Campaign X?"), only retrieve those specific fields.
-5) For performance-related queries (comparing campaigns, optimization, performance analysis), always include:
-   - CTR (Click-Through Rate): (clicks / impressions) * 100
-   - Cost per Conversion: spend / conversions
-   - ROAS (Return on Ad Spend): revenue / spend
-   - Conversion Rate: (conversions / clicks) * 100
-6) Keep queries structured and efficient, selecting only relevant columns.
-7) Output must be purely SQL, no explanation.
+Required Marketing Metrics (Always calculate when relevant):
+1. CTR = (clicks / impressions) * 100
+2. Cost per Conversion = spend / conversions
+3. ROAS = revenue / spend
+4. Conversion Rate = (conversions / clicks) * 100
 
-user's question:
+Query Requirements:
+1. ALWAYS use NULLIF() when dividing to avoid division by zero errors
+   Example: (clicks / NULLIF(impressions, 0)) * 100 as ctr
+2. ROUND all calculated metrics to 2 decimal places
+   Example: ROUND((clicks / NULLIF(impressions, 0)) * 100, 2) as ctr
+3. Include relevant grouping and filters based on channel, date ranges, or status
+4. Select only the columns needed to answer the question
+5. For date ranges, use proper DATE() functions
+6. Always alias calculated columns with clear names
+
+Your task: Generate a MySQL SELECT statement that answers this question:
 {input}
+
+Return only the SQL query without any explanation or commentary.
 """
 
 @traceable(name="generate_sql_from_llm")
@@ -154,35 +163,111 @@ def execute_llm_sql(sql_query: str):
     finally:
         if conn and conn.is_connected():
             conn.close()
-
+def summarize_sql_results(rows: List[Dict], max_rows: int = 5) -> str:
+    """Summarize SQL results to prevent token overflow"""
+    if not rows:
+        return "No results found."
+        
+    total_rows = len(rows)
+    summarized_rows = rows[:max_rows]
+    
+    # Calculate aggregate metrics if present
+    metrics = {}
+    numeric_columns = ['impressions', 'clicks', 'conversions', 'spend', 'revenue', 'ctr', 'conversion_rate', 'roas']
+    
+    for col in numeric_columns:
+        values = [float(row[col]) for row in rows if col in row and row[col] is not None]
+        if values:
+            metrics[col] = {
+                'avg': sum(values) / len(values),
+                'min': min(values),
+                'max': max(values)
+            }
+    
+    # Format summary
+    summary = []
+    summary.append(f"Total results: {total_rows} (showing first {len(summarized_rows)})")
+    
+    # Add metric summaries if available
+    for col, stats in metrics.items():
+        summary.append(f"{col.upper()}: Avg={stats['avg']:.2f}, Min={stats['min']:.2f}, Max={stats['max']:.2f}")
+    
+    # Add sample rows
+    summary.append("\nSample results:")
+    for row in summarized_rows:
+        row_items = [f"{k}={v}" for k, v in row.items()]
+        summary.append("  " + ", ".join(row_items))
+    
+    return "\n".join(summary)
 @traceable(name="dynamic_campaign_sql_tool_func")
 def dynamic_campaign_sql_tool_func(user_query: str) -> str:
     """
     1. Generate SQL via LLM
     2. Execute the SQL
-    3. Summarize results
+    3. Use LLM to format results based on the query context
     """
+    RESULT_FORMATTER_PROMPT = """You are an expert at interpreting SQL results for marketing campaigns.
+Given the original user question and SQL results, create a clear and concise summary.
+
+User Question: {user_query}
+
+SQL Query Used: {sql_query}
+
+SQL Results:
+{sql_results}
+
+Format your response considering:
+1. If user asked about metrics (CTR, ROAS, etc.), highlight those numbers
+2. If user asked for comparisons, show the differences
+3. If user asked for trends, summarize the pattern
+4. Include relevant context from the data
+5. Format numbers properly (e.g., percentages with 2 decimals, large numbers with commas)
+
+Return a concise, natural language response that directly answers the user's question."""
+
+    # Generate and execute SQL
     sql_stmt = generate_sql_from_llm(user_query)
     try:
         rows = execute_llm_sql(sql_stmt)
     except Exception as exc:
         logger.error("Error executing LLM SQL: %s", exc)
         return f"Error executing query: {exc}"
-
+    results_summary = summarize_sql_results(rows)
     if not rows:
         return "No results found."
 
-    # Summarize up to 3 rows
-    lines = []
-    for r in rows[:3]:
-        c_name = r.get("campaign_name", "N/A")
-        channel = r.get("channel", "N/A")
-        spend = r.get("spend", 0)
-        revenue = r.get("revenue", 0)
-        lines.append(
-            f"- {c_name} on {channel}, spend=${spend}, revenue=${revenue}"
-        )
-    return "LLM-based SQL Results:\n" + "\n".join(lines)
+    # Convert SQL results to readable format
+    results_text = ""
+    for row in rows:
+        row_items = []
+        for key, value in row.items():
+            if isinstance(value, (int, float)):
+                # Format numbers with commas and 2 decimal places if needed
+                row_items.append(f"{key}: {value:,.2f}")
+            else:
+                row_items.append(f"{key}: {value}")
+        results_text += "\n" + ", ".join(row_items)
+
+    # Use LLM to format results
+    llm = EnvUtils().get_llm()
+    format_prompt = PromptTemplate.from_template(RESULT_FORMATTER_PROMPT)
+    
+    chain = format_prompt | llm
+    
+    formatted_result = chain.invoke({
+        "user_query": user_query,
+        "sql_query": sql_stmt,
+        "sql_results": results_summary
+    })
+
+    return formatted_result.content
+
+# Example usage:
+# user_query = "What's our Facebook campaign CTR this month?"
+# This would return something like:
+# "Your Facebook campaigns this month have achieved an average CTR of 2.45%, 
+#  with the best performing campaign 'Summer Sale' reaching 3.12% CTR. 
+#  This represents a 0.5% improvement over last month's average."
 
 ###############################################################################
 # 4. Local Chroma Doc Retrieval
@@ -278,7 +363,7 @@ if __name__ == "__main__":
 
     # Example queries:
     queries = [
-        "Compare the campaign peformance between Facebook and LinkedIn this year",
+        "Which campaign had the highest conversion rate?"
     ]
 
     for q in queries:

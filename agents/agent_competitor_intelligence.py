@@ -460,6 +460,8 @@ def build_wearables_competitor_agent():
         2. Specific user feedback and complaints
         3. Feature comparisons
         4. Community engagement levels
+        5. Don't hallucinate, rely only on the data provided.
+        5. If you cannot fins information in one platform, try in another one, for example if reddit returns no results try in twitter or youtube.
         Always cite your sources (Twitter, Reddit, YouTube) when providing insights."""),
         ("human", "{input}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -494,7 +496,7 @@ if __name__ == "__main__":
 
     # Example queries
     test_queries = [
-        "Compare user feedback between Fitbit Versa and Apple Watch Series 9"
+        "How are people responding to the new Apple Watch Ultra features?"
     ]
 
     for query in test_queries:
